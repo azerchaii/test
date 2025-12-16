@@ -1,0 +1,122 @@
+syntax = "proto3";
+
+package requests;
+
+option python_generic_services = true;
+
+// Request Service - управление запросами на материалы от бригад
+service RequestService {
+    // Создание запроса на материалы
+    rpc CreateRequest(CreateMaterialRequestProto) returns (MaterialRequestResponse);
+    
+    // Получение запроса
+    rpc GetRequest(GetRequestRequest) returns (MaterialRequestResponse);
+    
+    // Список запросов
+    rpc ListRequests(ListRequestsRequest) returns (ListRequestsResponse);
+    
+    // Обновление статуса запроса
+    rpc UpdateRequestStatus(UpdateRequestStatusRequest) returns (MaterialRequestResponse);
+    
+    // Обновление выполненного количества
+    rpc UpdateFulfilledQuantity(UpdateFulfilledQuantityRequest) returns (MaterialRequestResponse);
+    
+    // Список бригад
+    rpc ListBrigades(ListBrigadesRequest) returns (ListBrigadesResponse);
+    
+    // Создание бригады
+    rpc CreateBrigade(CreateBrigadeRequest) returns (BrigadeResponse);
+}
+
+message CreateMaterialRequestProto {
+    string brigade_id = 1;
+    string project_id = 2;
+    repeated RequestItemInput items = 3;
+    string priority = 4;  // LOW, MEDIUM, HIGH, URGENT
+    string notes = 5;
+    string created_by = 6;  // user_id
+}
+
+message RequestItemInput {
+    string material_id = 1;
+    string material_name = 2;
+    int32 quantity = 3;
+}
+
+message MaterialRequestResponse {
+    string id = 1;
+    string brigade_id = 2;
+    string brigade_name = 3;
+    string project_id = 4;
+    repeated RequestItemInfo items = 5;
+    string status = 6;  // PENDING, PROCESSING, PARTIALLY_FULFILLED, FULFILLED, REJECTED
+    string priority = 7;
+    string created_by = 8;
+    string created_at = 9;
+    string updated_at = 10;
+    string notes = 11;
+}
+
+message RequestItemInfo {
+    string id = 1;
+    string material_id = 2;
+    string material_name = 3;
+    int32 requested_quantity = 4;
+    int32 fulfilled_quantity = 5;
+    int32 reserved_quantity = 6;
+    string status = 7;  // PENDING, RESERVED, ORDERING, FULFILLED
+}
+
+message GetRequestRequest {
+    string request_id = 1;
+}
+
+message ListRequestsRequest {
+    string brigade_id = 1;  // optional filter
+    string status = 2;  // optional filter
+    string priority = 3;  // optional filter
+    string created_by = 4;  // optional filter
+    int32 page = 5;
+    int32 page_size = 6;
+}
+
+message ListRequestsResponse {
+    repeated MaterialRequestResponse requests = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message UpdateRequestStatusRequest {
+    string request_id = 1;
+    string new_status = 2;
+}
+
+message UpdateFulfilledQuantityRequest {
+    string request_id = 1;
+    string material_id = 2;
+    int32 fulfilled_quantity = 3;
+}
+
+message ListBrigadesRequest {
+    string project_id = 1;  // optional filter
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+message ListBrigadesResponse {
+    repeated BrigadeResponse brigades = 1;
+    int32 total_count = 2;
+}
+
+message CreateBrigadeRequest {
+    string name = 1;
+    string project_id = 2;
+}
+
+message BrigadeResponse {
+    string id = 1;
+    string name = 2;
+    string project_id = 3;
+    string created_at = 4;
+}

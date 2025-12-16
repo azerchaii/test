@@ -1,0 +1,174 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Infrastructure
+  # ============================================
+  
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: cms-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS:-admin123}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cms-network
+
+  # ============================================
+  # Microservices
+  # ============================================
+  
+  inventory-service:
+    build:
+      context: .
+      dockerfile: services/inventory-service/Dockerfile
+    container_name: cms-inventory
+    ports:
+      - "50051:50051"
+    environment:
+      - DATABASE_URL=sqlite:///./data/inventory.db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      - GRPC_PORT=50051
+      - USE_STUBS=${USE_STUBS:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - inventory_data:/app/data
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  procurement-service:
+    build:
+      context: .
+      dockerfile: services/procurement-service/Dockerfile
+    container_name: cms-procurement
+    ports:
+      - "50052:50052"
+    environment:
+      - DATABASE_URL=sqlite:///./data/procurement.db
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      - INVENTORY_GRPC_HOST=inventory-service:50051
+      - NOTIFICATION_GRPC_HOST=notification-service:50054
+      - GRPC_PORT=50052
+      - USE_STUBS=${USE_STUBS:-true}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - procurement_data:/app/data
+    depends_on:
+      - inventory-service
+      - rabbitmq
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  request-service:
+    build:
+      context: .
+      dockerfile: services/request-service/Dockerfile
+    container_name: cms-requests
+    ports:
+      - "50053:50053"
+    environment:
+      - DATABASE_URL=sqlite:///./data/requests.db
+      - INVENTORY_GRPC_HOST=inventory-service:50051
+      - GRPC_PORT=50053
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - request_data:/app/data
+    depends_on:
+      - inventory-service
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: cms-notifications
+    ports:
+      - "50054:50054"
+    environment:
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-admin}:${RABBITMQ_PASS:-admin123}@rabbitmq:5672/
+      - GRPC_PORT=50054
+      - USE_STUBS=${USE_STUBS:-true}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - rabbitmq
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  # ============================================
+  # API Gateway
+  # ============================================
+  
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: cms-api-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - INVENTORY_GRPC_HOST=inventory-service:50051
+      - PROCUREMENT_GRPC_HOST=procurement-service:50052
+      - REQUEST_GRPC_HOST=request-service:50053
+      - NOTIFICATION_GRPC_HOST=notification-service:50054
+      - JWT_SECRET=${JWT_SECRET:-supersecretkey}
+      - JWT_ALGORITHM=${JWT_ALGORITHM:-HS256}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      - inventory-service
+      - procurement-service
+      - request-service
+      - notification-service
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+  # ============================================
+  # Web Application
+  # ============================================
+  
+  web-app:
+    build:
+      context: .
+      dockerfile: web-app/Dockerfile
+    container_name: cms-web
+    ports:
+      - "3000:3000"
+    environment:
+      - API_BASE_URL=http://api-gateway:8000/api/v1
+    depends_on:
+      - api-gateway
+    networks:
+      - cms-network
+    restart: unless-stopped
+
+networks:
+  cms-network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  inventory_data:
+  procurement_data:
+  request_data:
