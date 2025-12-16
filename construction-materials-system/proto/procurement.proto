@@ -1,0 +1,154 @@
+syntax = "proto3";
+
+package procurement;
+
+option python_generic_services = true;
+
+// Procurement Service - управление закупками
+service ProcurementService {
+    // Создание заказа на закупку
+    rpc CreatePurchaseOrder(CreateOrderRequest) returns (OrderResponse);
+    
+    // Получение заказа
+    rpc GetOrder(GetOrderRequest) returns (OrderResponse);
+    
+    // Список заказов
+    rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+    
+    // Обновление статуса заказа
+    rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (OrderResponse);
+    
+    // Получение списка поставщиков
+    rpc ListSuppliers(ListSuppliersRequest) returns (ListSuppliersResponse);
+    
+    // Получение поставщика
+    rpc GetSupplier(GetSupplierRequest) returns (SupplierResponse);
+    
+    // Создание поставщика
+    rpc CreateSupplier(CreateSupplierRequest) returns (SupplierResponse);
+    
+    // Обновление поставщика
+    rpc UpdateSupplier(UpdateSupplierRequest) returns (SupplierResponse);
+    
+    // Автоматическая закупка при нехватке
+    rpc ProcessShortage(ProcessShortageRequest) returns (ProcessShortageResponse);
+}
+
+message CreateOrderRequest {
+    string material_id = 1;
+    string material_name = 2;
+    int32 quantity = 3;
+    string supplier_id = 4;  // optional, auto-select if empty
+    string triggered_by_request_id = 5;
+}
+
+message OrderResponse {
+    string id = 1;
+    string material_id = 2;
+    string material_name = 3;
+    string supplier_id = 4;
+    string supplier_name = 5;
+    int32 quantity = 6;
+    double unit_price = 7;
+    double total_price = 8;
+    string status = 9;  // PENDING, ORDERED, DELIVERED, CANCELLED
+    string created_at = 10;
+    string expected_delivery = 11;
+    string external_order_id = 12;
+    string triggered_by_request_id = 13;
+}
+
+message GetOrderRequest {
+    string order_id = 1;
+}
+
+message ListOrdersRequest {
+    string status = 1;  // optional filter
+    string supplier_id = 2;  // optional filter
+    string material_id = 3;  // optional filter
+    int32 page = 4;
+    int32 page_size = 5;
+}
+
+message ListOrdersResponse {
+    repeated OrderResponse orders = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message UpdateOrderStatusRequest {
+    string order_id = 1;
+    string new_status = 2;  // ORDERED, DELIVERED, CANCELLED
+}
+
+message ListSuppliersRequest {
+    string material_id = 1;  // optional filter - поставщики для конкретного материала
+    bool active_only = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message ListSuppliersResponse {
+    repeated SupplierResponse suppliers = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message GetSupplierRequest {
+    string supplier_id = 1;
+}
+
+message SupplierResponse {
+    string id = 1;
+    string name = 2;
+    string email = 3;
+    string phone = 4;
+    double rating = 5;
+    bool is_active = 6;
+    repeated SupplierMaterial materials = 7;
+    string created_at = 8;
+}
+
+message SupplierMaterial {
+    string material_id = 1;
+    string material_name = 2;
+    double unit_price = 3;
+}
+
+message CreateSupplierRequest {
+    string name = 1;
+    string email = 2;
+    string phone = 3;
+    repeated SupplierMaterialInput materials = 4;
+}
+
+message SupplierMaterialInput {
+    string material_id = 1;
+    double unit_price = 2;
+}
+
+message UpdateSupplierRequest {
+    string supplier_id = 1;
+    string name = 2;
+    string email = 3;
+    string phone = 4;
+    bool is_active = 5;
+    repeated SupplierMaterialInput materials = 6;
+}
+
+message ProcessShortageRequest {
+    string material_id = 1;
+    string material_name = 2;
+    int32 shortage_quantity = 3;
+    string triggered_by_request_id = 4;
+}
+
+message ProcessShortageResponse {
+    bool success = 1;
+    string order_id = 2;
+    string message = 3;
+    string supplier_name = 4;
+    double estimated_cost = 5;
+}

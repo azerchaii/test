@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package inventory;
+
+option python_generic_services = true;
+
+// Inventory Service - управление материалами на складе
+service InventoryService {
+    // Получение информации о материале
+    rpc GetMaterial(GetMaterialRequest) returns (MaterialResponse);
+    
+    // Получение списка всех материалов
+    rpc ListMaterials(ListMaterialsRequest) returns (ListMaterialsResponse);
+    
+    // Создание нового материала
+    rpc CreateMaterial(CreateMaterialRequest) returns (MaterialResponse);
+    
+    // Обновление материала
+    rpc UpdateMaterial(UpdateMaterialRequest) returns (MaterialResponse);
+    
+    // Проверка доступности материала
+    rpc CheckAvailability(CheckAvailabilityRequest) returns (AvailabilityResponse);
+    
+    // Резервирование материала под запрос
+    rpc ReserveMaterial(ReserveMaterialRequest) returns (ReserveResponse);
+    
+    // Освобождение резерва
+    rpc ReleaseReservation(ReleaseReservationRequest) returns (ReleaseResponse);
+    
+    // Обновление количества (после закупки)
+    rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+    
+    // Получение материалов ниже порога
+    rpc GetLowStockMaterials(Empty) returns (LowStockResponse);
+}
+
+message Empty {}
+
+message GetMaterialRequest {
+    string material_id = 1;
+}
+
+message MaterialResponse {
+    string id = 1;
+    string name = 2;
+    string unit = 3;
+    string category = 4;
+    int32 quantity = 5;
+    int32 reserved = 6;
+    int32 available = 7;
+    int32 min_threshold = 8;
+    string created_at = 9;
+    string updated_at = 10;
+}
+
+message ListMaterialsRequest {
+    string category = 1;  // optional filter
+    int32 page = 2;
+    int32 page_size = 3;
+}
+
+message ListMaterialsResponse {
+    repeated MaterialResponse materials = 1;
+    int32 total_count = 2;
+    int32 page = 3;
+    int32 page_size = 4;
+}
+
+message CreateMaterialRequest {
+    string name = 1;
+    string unit = 2;
+    string category = 3;
+    int32 initial_quantity = 4;
+    int32 min_threshold = 5;
+}
+
+message UpdateMaterialRequest {
+    string material_id = 1;
+    string name = 2;
+    string unit = 3;
+    string category = 4;
+    int32 min_threshold = 5;
+}
+
+message CheckAvailabilityRequest {
+    string material_id = 1;
+    int32 requested_quantity = 2;
+}
+
+message AvailabilityResponse {
+    bool is_available = 1;
+    int32 available_quantity = 2;
+    int32 requested_quantity = 3;
+    int32 shortage = 4;
+    string material_id = 5;
+    string material_name = 6;
+}
+
+message ReserveMaterialRequest {
+    string material_id = 1;
+    int32 quantity = 2;
+    string request_id = 3;
+}
+
+message ReserveResponse {
+    bool success = 1;
+    string reservation_id = 2;
+    string error_message = 3;
+    int32 reserved_quantity = 4;
+}
+
+message ReleaseReservationRequest {
+    string reservation_id = 1;
+    string material_id = 2;
+    int32 quantity = 3;
+}
+
+message ReleaseResponse {
+    bool success = 1;
+    string error_message = 2;
+}
+
+message UpdateStockRequest {
+    string material_id = 1;
+    int32 quantity_delta = 2;
+    string reason = 3;  // PURCHASE, MANUAL_ADJUSTMENT, CONSUMPTION
+    string reference_id = 4;  // order_id или другая ссылка
+}
+
+message UpdateStockResponse {
+    bool success = 1;
+    int32 new_quantity = 2;
+    string error_message = 3;
+}
+
+message LowStockResponse {
+    repeated MaterialResponse materials = 1;
+}
