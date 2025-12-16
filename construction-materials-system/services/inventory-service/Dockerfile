@@ -8,14 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
-COPY requirements.txt .
+COPY services/inventory-service/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
-COPY src/ ./src/
+COPY services/inventory-service/src/ ./src/
 
 # Copy proto files and generate gRPC code
-COPY ../../proto/ ./proto/
+COPY proto/ ./proto/
 RUN python -m grpc_tools.protoc \
     -I./proto \
     --python_out=./src/infrastructure/grpc_server \
